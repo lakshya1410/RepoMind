@@ -1,0 +1,44 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# Environment variables
+.env
+
+# ChromaDB
+chroma_db/
+
+# Cloned repositories
+repositories/
+
+# VS Code
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# HuggingFace cache
+.cache/
+hf_cache/
+
+# Logs
+*.log
+
+# Build files
+dist/
+build/
+
+# Jupyter
+.ipynb_checkpoints/
+
+#claude
+.claude/
+
+#devcontainer
+.devcontainer/
+# Additional ignores
+env/
+node_modules/
+tempCodeRunnerFile.bat
