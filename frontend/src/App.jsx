@@ -1,5 +1,7 @@
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import './index.css';
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://127.0.0.1:8000';
@@ -13,8 +15,15 @@ export default function App() {
   const [askRepo, setAskRepo] = useState('');
   const [askQuery, setAskQuery] = useState('');
   const [askLoading, setAskLoading] = useState(false);
-  const [askResult, setAskResult] = useState(null);
-  const [askError, setAskError] = useState('');
+  
+  const [messages, setMessages] = useState([]);
+  const chatHistoryRef = useRef(null);
+
+  useEffect(() => {
+    if (chatHistoryRef.current) {
+      chatHistoryRef.current.scrollTop = chatHistoryRef.current.scrollHeight;
+    }
+  }, [messages, askLoading]);
 
   const handleLoad = async (e) => {
     e.preventDefault();
@@ -23,8 +32,7 @@ export default function App() {
     setLoadLoading(true);
     setLoadError('');
     setLoadResult(null);
-    setAskResult(null);
-    setAskError('');
+    setMessages([]);
     setAskQuery('');
     setAskRepo('');
 
@@ -45,19 +53,22 @@ export default function App() {
 
   const handleAsk = async (e) => {
     e.preventDefault();
-    if (!askRepo || !askQuery) return;
+    if (!askRepo || !askQuery.trim()) return;
     
+    const userQuery = askQuery.trim();
+    setAskQuery('');
+    
+    const newMessages = [...messages, { role: 'user', content: userQuery }];
+    setMessages(newMessages);
     setAskLoading(true);
-    setAskError('');
-    setAskResult(null);
 
     try {
-      const response = await fetch(`${API_BASE}/ask?query=${encodeURIComponent(askQuery)}&repo_name=${encodeURIComponent(askRepo)}`);
+      const response = await fetch(`${API_BASE}/ask?query=${encodeURIComponent(userQuery)}&repo_name=${encodeURIComponent(askRepo)}`);
       if (!response.ok) throw new Error('Failed to fetch answer. Make sure the repo is loaded.');
       const data = await response.json();
-      setAskResult(data);
+      setMessages([...newMessages, { role: 'assistant', content: data.answer }]);
     } catch (err) {
-      setAskError(err.message);
+      setMessages([...newMessages, { role: 'assistant', content: `Error: ${err.message}`, isError: true }]);
     } finally {
       setAskLoading(false);
     }
@@ -72,8 +83,8 @@ export default function App() {
         </p>
       </header>
 
-      <main>
-        <section className="card" style={{ marginBottom: loadResult ? '2rem' : '0' }}>
+      <main className={`main-content ${loadResult ? 'split-layout' : ''}`}>
+        <section className="card index-section" style={{ marginBottom: loadResult ? '0' : '0' }}>
           <div className="card-header">
             <h2 className="card-title">
               <svg className="icon" viewBox="0 0 24 24"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></svg>
@@ -139,62 +150,59 @@ export default function App() {
         </section>
 
         {loadResult && (
-          <section className="card">
+          <section className="card chat-container">
             <div className="card-header">
               <h2 className="card-title">
                 <svg className="icon" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
-                Query Codebase
+                Chat with {askRepo}
               </h2>
-              <p className="card-description">Ask any question about the architecture, logic, or implementation.</p>
             </div>
 
-            <form onSubmit={handleAsk}>
-              <div className="grid-cols-2">
-                <div className="form-group">
-                  <label className="label">Target Repository</label>
-                  <input 
-                    type="text" 
-                    className="input" 
-                    value={askRepo}
-                    disabled
-                  />
+            <div className="chat-history" ref={chatHistoryRef}>
+              {messages.length === 0 && (
+                <div className="empty-chat">
+                  Ask any question about the architecture, logic, or implementation of {askRepo}.
                 </div>
-                <div className="form-group">
-                  <label className="label">Your Question</label>
-                  <input 
-                    type="text" 
-                    className="input" 
-                    placeholder="E.g., How does the auth middleware work?" 
-                    value={askQuery}
-                    onChange={(e) => setAskQuery(e.target.value)}
-                    required
-                  />
+              )}
+              {messages.map((msg, idx) => (
+                <div key={idx} className={`chat-message ${msg.role} ${msg.isError ? 'error' : ''}`}>
+                  <div className="message-avatar">
+                    {msg.role === 'user' ? 'U' : 'AI'}
+                  </div>
+                  <div className="message-content">
+                    {msg.role === 'user' ? (
+                      msg.content
+                    ) : (
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {msg.content}
+                      </ReactMarkdown>
+                    )}
+                  </div>
                 </div>
-              </div>
-              
-              <button type="submit" className="btn" disabled={askLoading}>
-                {askLoading ? (
-                  <div className="loader-dots"><div></div><div></div><div></div></div>
-                ) : (
-                  <>
-                    <svg className="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                    Analyze & Retrieve
-                  </>
-                )}
+              ))}
+              {askLoading && (
+                <div className="chat-message assistant">
+                  <div className="message-avatar">AI</div>
+                  <div className="message-content">
+                    <div className="loader-dots"><div></div><div></div><div></div></div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <form className="chat-input-form" onSubmit={handleAsk}>
+              <input 
+                type="text" 
+                className="chat-input" 
+                placeholder="Message RepoMind..." 
+                value={askQuery}
+                onChange={(e) => setAskQuery(e.target.value)}
+                disabled={askLoading}
+                required
+              />
+              <button type="submit" className="chat-send-btn" disabled={askLoading || !askQuery.trim()}>
+                <svg className="icon" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
               </button>
-
-              {askError && (
-                <div className="alert alert-error">
-                  <svg className="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                  {askError}
-                </div>
-              )}
-
-              {askResult && (
-                <div className="answer-box">
-                  {askResult.answer}
-                </div>
-              )}
             </form>
           </section>
         )}
