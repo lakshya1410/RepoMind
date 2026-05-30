@@ -7,6 +7,7 @@ import './index.css';
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://127.0.0.1:8000';
 
 export default function App() {
+  const [view, setView] = useState('onboarding'); // 'onboarding' or 'app'
   const [loadUrl, setLoadUrl] = useState('');
   const [loadLoading, setLoadLoading] = useState(false);
   const [loadResult, setLoadResult] = useState(null);
@@ -76,15 +77,112 @@ export default function App() {
 
   return (
     <>
-      <header className="hero-section">
-        <h1 className="hero-title">RepoMind</h1>
-        <p className="hero-subtitle">
-          Instantly explore, analyze, and chat with your GitHub repositories using natural language and semantic search.
-        </p>
-      </header>
+      {view === 'onboarding' ? (
+        <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ paddingTop: '20vh', paddingBottom: '10vh' }}>
+            <header className="hero-section" style={{ width: '100%' }}>
+              <div className="preview-badge">DEVELOPER PREVIEW V1.0.4</div>
+              <h1 className="hero-title">Repo<span className="text-accent">Mind</span></h1>
+              <p className="hero-subtitle">
+                Instantly explore, analyze, and chat with your codebase.<br/>Knowledge extraction for the modern developer workspace.
+              </p>
+              <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem', justifyContent: 'center' }}>
+                <button className="btn" onClick={() => setView('app')}>Get Started</button>
+                <button className="btn btn-outline">View Demo</button>
+              </div>
+            </header>
+          </div>
 
-      <main className={`main-content ${loadResult ? 'split-layout' : ''}`}>
-        <section className="card index-section" style={{ marginBottom: loadResult ? '0' : '0' }}>
+          <section style={{ maxWidth: '1000px', margin: '0 auto 4rem', width: '100%' }}>
+            <h3 className="section-heading">How it Works</h3>
+            <div className="onboarding-grid-features">
+              <div className="card step-card">
+                <div className="feature-icon mb-2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg></div>
+                <div className="step-label">Step 01</div>
+                <h4>Link Repo</h4>
+                <p>Connect your GitHub account securely. Select the repositories you want RepoMind to master.</p>
+              </div>
+              <div className="card step-card">
+                <div className="feature-icon mb-2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect><rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg></div>
+                <div className="step-label">Step 02</div>
+                <h4>Index Code</h4>
+                <p>Our engine parses your codebase, creating a semantic index of logic, dependencies, and architecture.</p>
+              </div>
+              <div className="card step-card">
+                <div className="feature-icon mb-2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg></div>
+                <div className="step-label">Step 03</div>
+                <h4>Chat</h4>
+                <p>Ask questions, debug issues, or refactor components using natural language informed by your actual code.</p>
+              </div>
+            </div>
+            
+            <div className="onboarding-grid-bottom">
+               <div className="card feature-card-large col-span-2" style={{ position: 'relative' }}>
+                 <div className="feature-icon" style={{ position: 'absolute', top: '2rem', right: '2rem', width: '48px', height: '48px', opacity: 0.5 }}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg></div>
+                 <h3>AI-Native Codebase Intelligence</h3>
+                 <p style={{ maxWidth: '600px' }}>Deep integration with LLMs allows RepoMind to understand context that traditional search misses. Find architectural bottlenecks in seconds.</p>
+               </div>
+               
+               <div className="card feature-card-accent col-span-1">
+                 <div className="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg></div>
+                 <div>
+                   <h3>Blazing Fast Indexing</h3>
+                   <p>Proprietary vectorization engine built for scale. Millions of lines of code processed in minutes.</p>
+                 </div>
+               </div>
+
+               <div className="card col-span-1">
+                 <div className="feature-icon mb-2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg></div>
+                 <h4 style={{ fontSize: '1.25rem', marginTop: '1rem', color: 'var(--text-primary)' }}>Enterprise Security</h4>
+                 <p style={{ color: 'var(--text-secondary)', marginTop: '0.5rem', fontSize: '0.875rem' }}>SOC2 compliant. Your code remains yours. We never train on your private repositories.</p>
+               </div>
+
+               <div className="card col-span-2">
+                 <div className="feature-icon mb-2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="18" cy="18" r="3"></circle><circle cx="6" cy="6" r="3"></circle><path d="M13 6h3a2 2 0 0 1 2 2v7"></path><line x1="6" y1="9" x2="6" y2="21"></line></svg></div>
+                 <h4 style={{ fontSize: '1.25rem', marginTop: '1rem', color: 'var(--text-primary)' }}>Multi-Repo Analysis</h4>
+                 <p style={{ color: 'var(--text-secondary)', marginTop: '0.5rem', fontSize: '0.875rem' }}>Analyze relationships and dependencies across your entire organization's ecosystem.</p>
+               </div>
+            </div>
+          </section>
+
+          <footer className="cta-section" style={{ paddingTop: '2rem' }}>
+            <div className="footer-bottom">
+              <div className="footer-brand">
+                <span className="footer-logo">RepoMind</span>
+                <span className="footer-version">v1.0.4</span>
+              </div>
+              
+              <div className="footer-links">
+                <a href="#">Documentation</a>
+                <a href="#">Privacy</a>
+                <a href="#">Terms</a>
+                <a href="#">Support</a>
+              </div>
+              
+              <div className="footer-social">
+                <a href="#">
+                  <svg className="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                </a>
+                <a href="#">
+                  <svg className="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.92 7.94"/></svg>
+                </a>
+              </div>
+            </div>
+
+            <div className="footer-copyright">
+              © 2024 RepoMind AI Inc. Built for developers by developers.
+            </div>
+          </footer>
+        </div>
+      ) : (
+        <main className={`main-content ${loadResult ? 'split-layout' : ''}`}>
+          {!loadResult && (
+            <div style={{ textAlign: 'center', marginBottom: '1rem' }}>
+              <h1 className="hero-title" style={{ fontSize: '2.5rem' }}>Index Repository</h1>
+              <p className="hero-subtitle" style={{ fontSize: '1rem', marginTop: '0.5rem' }}>Connect your codebase to RepoMind's neural engine. We'll clone, analyze, and vectorize your repository for intelligent semantic search.</p>
+            </div>
+          )}
+          <section className="card index-section" style={{ marginBottom: loadResult ? '0' : '0' }}>
           <div className="card-header">
             <h2 className="card-title">
               <svg className="icon" viewBox="0 0 24 24"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></svg>
@@ -147,6 +245,21 @@ export default function App() {
               </div>
             )}
           </form>
+
+          {!loadResult && !loadLoading && (
+            <div className="grid-cols-2 mt-4" style={{ marginTop: '2rem' }}>
+              <div className="feature-card">
+                <div className="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg></div>
+                <h4>Secure Isolation</h4>
+                <p>Your code is indexed in a temporary sandboxed environment and encrypted at rest.</p>
+              </div>
+              <div className="feature-card">
+                <div className="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect><rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg></div>
+                <h4>Semantic Graph</h4>
+                <p>We build a multidimensional map of your logic, dependencies, and docstrings.</p>
+              </div>
+            </div>
+          )}
         </section>
 
         {loadResult && (
@@ -207,6 +320,7 @@ export default function App() {
           </section>
         )}
       </main>
+      )}
     </>
   );
 }
