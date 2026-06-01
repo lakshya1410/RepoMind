@@ -1,131 +1,127 @@
-from fastapi import FastAPI
+import logging
+import os
+
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.services.file_reader import read_code_files
-from backend.services.chunker import chunk_code
-from backend.services.embedder import generate_embeddings
-from backend.services.vector_db import store_embeddings
-from backend.services.embedder import generate_query_embedding
-from backend.services.vector_db import search_similar_chunks
-from backend.services.llm_service import generate_response
-from backend.services.repo_loader import clone_github_repo
-import streamlit as st
+from backend.services.graph.index_graph import index_graph
+from backend.services.graph.query_graph import query_graph
 
-app = FastAPI()
+
+app = FastAPI(
+    title="RepoMind API",
+    description="AI Codebase Assistant using LangGraph + RAG",
+    version="2.0"
+)
+
+
+# CORS setup
+# NOTE: `allow_origins=["*"]` cannot be combined with `allow_credentials=True`
+# in browsers. We keep explicit local dev origins by default and allow override
+# via CORS_ALLOW_ORIGINS env var (comma-separated).
+default_origins = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+env_origins = os.getenv("CORS_ALLOW_ORIGINS", "").strip()
+allow_origins = [o.strip() for o in env_origins.split(",") if o.strip()] if env_origins else default_origins
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allow_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-# sneh
+logger = logging.getLogger(__name__)
 
 
+# Health check
 @app.get("/")
 def home():
-    return {"message": "RepoMind Running"}
-
-
-@app.get("/read-codebase")
-def read_codebase():
-
-    folder_path = "sample_codebase"
-
-    files = read_code_files(folder_path)
 
     return {
-        "total_files": len(files),
-        "files": files
+        "message": "RepoMind Running 🚀"
     }
 
 
-@app.get("/chunks")
-def generate_chunks():
 
-    folder_path = "sample_codebase"
-
-    files = read_code_files(folder_path)
-
-    chunks = chunk_code(files)
-
-    return {
-        "total_chunks": len(chunks),
-        "chunks": chunks
-    }
-
-
-@app.get("/embeddings")
-def embeddings():
-
-    folder_path = "sample_codebase"
-
-    files = read_code_files(folder_path)
-
-    chunks = chunk_code(files)
-
-    embedded_chunks = generate_embeddings(chunks)
-
-    return {
-        "total_embeddings": len(embedded_chunks),
-        "data": embedded_chunks
-    }
-
-@app.get("/store-embeddings")
-def store_all_embeddings():
-
-    folder_path = "sample_codebase"
-
-    files = read_code_files(folder_path)
-
-    chunks = chunk_code(files)
-
-    embedded_chunks = generate_embeddings(chunks)
-
-    result = store_embeddings(embedded_chunks)
-
-    return result
-
-@app.get("/ask")
-def ask_question(query: str, repo_name: str):
-
-    query_embedding = generate_query_embedding(query)
-
-    retrieved_chunks = search_similar_chunks(
-        query_embedding,
-        repo_name
-    )
-
-    answer = generate_response(query, retrieved_chunks)
-
-    return {
-        "repo_name": repo_name,
-        "query": query,
-        "answer": answer
-    }
+# ============================
+# INDEXING GRAPH
+# ============================
 
 @app.post("/load-repo")
 def load_repository(repo_url: str):
 
-    repo_path = clone_github_repo(repo_url)
 
-    repo_name = repo_url.rstrip("/").split("/")[-1]
-
-    files = read_code_files(repo_path)
-
-    chunks = chunk_code(files)
-
-    embedded_chunks = generate_embeddings(chunks)
-
-    result = store_embeddings(
-        embedded_chunks,
-        repo_name
+    result = index_graph.invoke(
+        {
+            "repo_url": repo_url
+        }
     )
 
+
     return {
-        "repo_name": repo_name,
-        "files_found": len(files),
-        "chunks_created": len(chunks),
-        "message": result
+
+        "status": "success",
+
+        "repo_name":
+        result["repo_name"],
+
+
+        "files_found":
+        len(result["files"]),
+
+
+        "chunks_created":
+        len(result["chunks"]),
+
+
+        "message":
+        result["message"]
+
+    }
+
+
+
+# ============================
+# QUERY GRAPH
+# ============================
+
+
+@app.get("/ask")
+def ask_question(
+    query: str,
+    repo_name: str
+):
+
+
+    try:
+        result = query_graph.invoke(
+            {
+                "query": query,
+
+                "repo_name": repo_name
+            }
+        )
+
+    except Exception as exc:
+        logger.exception("Error while answering query")
+        raise HTTPException(status_code=500, detail=f"Ask failed: {str(exc)}")
+
+    return {
+
+        "repo_name":
+        repo_name,
+
+
+        "query":
+        query,
+
+
+        "answer":
+        result["answer"]
+
     }

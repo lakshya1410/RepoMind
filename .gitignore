@@ -42,3 +42,5 @@ build/
 env/
 node_modules/
 tempCodeRunnerFile.bat
+PROJECT_DOCUMENTATION.md/
+architecture diagram.png/

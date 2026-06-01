@@ -1,27 +1,18 @@
-from sentence_transformers import SentenceTransformer
+from langchain_huggingface import (
+HuggingFaceEmbeddings
+)
 
-model = SentenceTransformer('all-MiniLM-L6-v2')
 
+embedding_model = HuggingFaceEmbeddings(
+model_name=
+"sentence-transformers/all-MiniLM-L6-v2"
+)
+
+
+def get_embedding_model():
+    return embedding_model
 
 def generate_embeddings(chunks):
-
-    embedded_chunks = []
-
-    for chunk in chunks:
-
-        embedding = model.encode(chunk["chunk"]).tolist()
-
-        embedded_chunks.append({
-            "file_name": chunk["file_name"],
-            "path": chunk["path"],
-            "chunk": chunk["chunk"],
-            "embedding": embedding
-        })
-
-    return embedded_chunks
-
-def generate_query_embedding(query):
-
-    embedding = model.encode(query).tolist()
-
-    return embedding
+    # Chroma handles embeddings internally when we pass the embedding_function,
+    # so we just return chunks here.
+    return chunks

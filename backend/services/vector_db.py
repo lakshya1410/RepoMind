@@ -1,49 +1,88 @@
-import chromadb
-import os
+from langchain_chroma import Chroma
+from langchain_core.documents import Document
 
-# Use a persistent client instead of an ephemeral one
-# This ensures that embeddings are stored on disk and survive restarts
-client = chromadb.PersistentClient(path="chroma_db")
-
-def get_collection(collection_name):
-
-    collection = client.get_or_create_collection(
-        name=collection_name
-    )
-
-    return collection
+from backend.services.embedder import get_embedding_model
 
 
-def store_embeddings(embedded_chunks, collection_name):
 
-    collection = get_collection(collection_name)
+def store_embeddings(
+chunks,
+collection_name
+):
 
-    # Clear existing collection if we want to re-index the repository
-    # collection.delete(ids=collection.get().ids) # Uncomment if fresh index per repo is needed
 
-    # Chunking the updates to avoid API/memory limits if the codebase is huge
-    batch_size = 100
-    for i in range(0, len(embedded_chunks), batch_size):
-        batch = embedded_chunks[i:i+batch_size]
-        ids = [str(index) for index in range(i, i + len(batch))]
-        embeddings = [item["embedding"] for item in batch]
-        documents = [item["chunk"] for item in batch]
+    docs=[]
 
-        collection.add(
-            ids=ids,
-            embeddings=embeddings,
-            documents=documents
+
+    for chunk in chunks:
+
+
+        docs.append(
+        Document(
+        page_content=
+        chunk["chunk"],
+
+
+        metadata={
+        "file":
+        chunk["file_name"],
+
+        "path":
+        chunk["path"]
+        }
+        )
         )
 
-    return "Embeddings stored successfully"
 
-def search_similar_chunks(query_embedding, collection_name):
 
-    collection = get_collection(collection_name)
+    db = Chroma(
+    collection_name=collection_name,
 
-    results = collection.query(
-        query_embeddings=[query_embedding],
-        n_results=3
+    embedding_function=
+    get_embedding_model(),
+
+    persist_directory=
+    "./chroma_db"
     )
 
-    return results
+
+    db.add_documents(docs)
+
+
+
+    return True
+
+
+
+
+def get_retriever(collection):
+
+
+    db=Chroma(
+    collection_name=collection,
+
+    embedding_function=
+    get_embedding_model(),
+
+    persist_directory=
+    "./chroma_db"
+    )
+
+
+    return db.as_retriever(
+        search_kwargs={
+        "k":5
+        }
+    )
+
+def search_similar_chunks(query, collection_name):
+    retriever = get_retriever(collection_name)
+    docs = retriever.invoke(query)
+    
+    return [
+        {
+            "chunk": doc.page_content,
+            "file_name": doc.metadata.get("file"),
+            "path": doc.metadata.get("path")
+        } for doc in docs
+    ]

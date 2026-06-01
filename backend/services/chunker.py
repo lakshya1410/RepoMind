@@ -1,52 +1,53 @@
-import re
+from langchain_text_splitters import (
+RecursiveCharacterTextSplitter
+)
 
 
-import re
+def chunk_code(files):
 
-def chunk_code(code_files):
-    chunks = []
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=1200,
+        chunk_overlap=200
+    )
 
-    for file in code_files:
-        content = file["content"]
 
-        # Improved chunking: split by common function/class definitions across languages
-        # Python: def, class | JS/TS: function, class, const ... = (...) =>
-        patterns = [
-            r'\ndef\s+',
-            r'\nclass\s+',
-            r'\nfunction\s+',
-            r'\nclass\s+',
-            r'\nconst\s+\w+\s*=\s*\(\s*\)\s*=>'
-        ]
+    chunks=[]
 
-        # Combine patterns into one regex
-        combined_pattern = '|'.join(patterns)
-        split_chunks = re.split(f'({combined_pattern})', content)
 
-        # re.split with capturing group returns the delimiters as well
-        # split_chunks will look like: [prefix, delimiter, chunk, delimiter, chunk...]
+    for file in files:
 
-        current_chunk = split_chunks[0]
-        for i in range(1, len(split_chunks), 2):
-            delimiter = split_chunks[i]
-            body = split_chunks[i+1] if i+1 < len(split_chunks) else ""
 
-            # First, save the previous chunk if it's not just whitespace
-            if current_chunk.strip():
-                chunks.append({
-                    "file_name": file["file_name"],
-                    "path": file["path"],
-                    "chunk": current_chunk.strip()
-                })
+        docs = splitter.create_documents(
+            [
+            file["content"]
+            ],
 
-            current_chunk = delimiter + body
+            metadatas=[
+                {
+                "file":
+                file["file_name"],
 
-        # Add the final chunk
-        if current_chunk.strip():
-            chunks.append({
-                "file_name": file["file_name"],
-                "path": file["path"],
-                "chunk": current_chunk.strip()
-            })
+                "path":
+                file["path"]
+                }
+            ]
+        )
+
+
+        for doc in docs:
+
+            chunks.append(
+            {
+            "file_name":
+            doc.metadata["file"],
+
+            "path":
+            doc.metadata["path"],
+
+            "chunk":
+            doc.page_content
+            }
+            )
+
 
     return chunks

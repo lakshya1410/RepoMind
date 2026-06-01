@@ -1,8 +1,40 @@
-streamlit
+# API Framework
 fastapi
 uvicorn
-groq
+
+# Environment variables
 python-dotenv
-chromadb
+
+
+# LLM Provider
+groq
+langchain-groq
+
+
+# LangChain Core
+langchain
+langchain-core
+langchain-community
+langgraph
+
+
+# Embeddings
 sentence-transformers
+langchain-huggingface
+
+
+# Vector Database
+chromadb
+langchain-chroma
+
+
+# Git Repository Handling
 GitPython
+
+
+# Data Validation
+pydantic
+
+
+# Frontend (if you are still using Streamlit)
+streamlit

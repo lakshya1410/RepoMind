@@ -1,70 +1,244 @@
-# 🧠 RepoMind: Complete Project Documentation
+# RepoMind Project Documentation
 
-**RepoMind** is a full-stack, AI-powered developer tool designed to solve a critical engineering problem: onboarding onto a new codebase and understanding unfamiliar architectures. By utilizing an advanced **Retrieval-Augmented Generation (RAG)** pipeline, RepoMind clones GitHub repositories, analyzes source code, builds a local semantic search engine, and allows developers to chat with their codebase using natural language.
+## 1. Project Summary
 
----
+RepoMind is a codebase intelligence tool that clones a public GitHub repository, indexes its source files into a persistent vector database, and answers natural-language questions against that indexed repository.
 
-## 1. System Architecture & Tech Stack Overview
+The current application is made of:
 
-The project is built on a modern, decoupled architecture connecting a high-performance Python vector pipeline with an interactive React interface.
+- a React frontend in `frontend/`
+- a FastAPI backend in `backend/`
+- a LangGraph-based ingestion and query pipeline
+- local embeddings and retrieval with Chroma
+- Groq-hosted answer generation
 
-### **Frontend**
-* **React 19 + Vite**: Chosen for fast builds, hot module replacement, and modern concurrent mode features.
-* **Component Styling**: Custom CSS featuring a dark-themed glassmorphism aesthetic with floating chat elements for a clean ChatGPT-like experience.
-* **Markdown Rendering**: Integrates `react-markdown` and `remark-gfm` to elegantly parse structured responses, code blocks, and tables returned by the AI.
+The active backend entrypoint is [backend/main.py](C:/Users/LAKSHYA/Desktop/AI-CodeBase-Assistant/backend/main.py).
 
-### **Backend Core (Python/FastAPI)**
-* **FastAPI Server**: Acts as the high-speed gateway handling HTTP requests, leveraging asynchronous endpoints and auto-generated OpenAPI docs. `uvicorn` acts as the ASGI server.
-* **GitPython**: Handles programmatic fetching and cloning of repositories directly from remote URLs into a local `repositories/` directory.
+## 2. Runtime Architecture
 
-### **AI & Data Pipeline (RAG Engine)**
-1. **Model & Inference (LLM)**: **Llama-3.3-70B** served via the ultra-low latency **Groq API**.
-2. **Embeddings Engine**: Hugging Face's `sentence-transformers` locally executing the `all-MiniLM-L6-v2` model to map code snippets to high-dimensional space without requiring external API calls.
-3. **Vector Database**: **ChromaDB** running via a `PersistentClient()`. It permanently stores code vectors on disk (inside the `chroma_db/` folder), isolating different tracked repositories into their own collections.
+### Frontend layer
 
----
+The frontend is a Vite-powered React app that:
 
-## 2. Core Workflows Deep-Dive
+- accepts a repository URL
+- sends the indexing request to the backend
+- stores the indexed repository name returned by the API
+- sends user questions to the `/ask` endpoint
+- renders markdown answers in the chat UI
 
-### Workflow A: Repository Ingestion (`/load-repo`)
-When a user submits a public GitHub URL in the frontend, the backend executes the ingestion pipeline incrementally:
+The main UI logic lives in [frontend/src/App.jsx](C:/Users/LAKSHYA/Desktop/AI-CodeBase-Assistant/frontend/src/App.jsx).
 
-1. **Repository Cloning (`repo_loader.py`)**: 
-   The system extracts the repository name, purges any existing local copy to prevent conflicts, and executes a git clone via `GitPython`.
-2. **File Scanning (`file_reader.py`)**:
-   It recursively traverses the cloned folder explicitly hunting for supported extension files (`.py, .js, .java, .ts, .cpp, .cs, .go, .rs`). It implements safe UTF-8 decoding to silently bypass binaries.
-3. **Intelligent Code Chunking (`chunker.py`)**:
-   Instead of naive character limits, the chunker uses a multi-language regex strategy. It splits code around logical boundaries like `def `, `class `, `function `, and `const ... = () =>`. This retains the context of an entire function without cutting logic in half.
-4. **Embedding Generation (`embedder.py`)**:
-   `SentenceTransformers` tokenizes and encodes every chunk into numerical dense vectors.
-5. **Vector Storage (`vector_db.py`)**:
-   The vectors, alongside their raw text paths and code contents, are pushed into a ChromaDB Collection named after the repository. Batching (groups of 100) is utilized to optimize memory safety against massive monorepos.
+### API layer
 
-### Workflow B: Codebase Querying (`/ask`)
-When a user initiates the chat functionality:
+The backend API is defined in [backend/main.py](C:/Users/LAKSHYA/Desktop/AI-CodeBase-Assistant/backend/main.py). It currently exposes three relevant routes:
 
-1. **Query Embedding**: The user's semantic question (e.g., *"How is user authentication implemented?"*) is embedded using the *exact same* local `all-MiniLM-L6-v2` model used during chunking.
-2. **Vector Similarity Search**: ChromaDB calculates cosine similarity (or L2 distance) to find the top 3 nearest code chunks inside that specific repository's collection.
-3. **Prompt Augmentation (`llm_service.py`)**:
-   A prompt is constructed instructing the AI that it is "RepoMind" and strictly enforcing it to answer *only* based on the injected context chunks.
-4. **Streaming/Generation**: The payload is sent to Groq. Groq’s LPU engines process the Llama-3.3 prompt near-instantly and return a highly contextual answer containing codebase references and logic explanations.
+- `GET /` for a health check
+- `POST /load-repo` for repository ingestion
+- `GET /ask` for repository-aware question answering
 
----
+The backend also configures CORS for local frontend development and supports overriding allowed origins with `CORS_ALLOW_ORIGINS`.
 
-## 3. Frontend Layout & User Experience
+### Workflow layer
 
-The React UI is split into two primary states to guide the user naturally:
+The backend uses LangGraph to structure the main application flows:
 
-* **Initial State (Empty)**: A single central card prompts the user to "Index Repository" with a GitHub input field mapping directly to the ingestion pipeline.
-* **Engaged State (Side-by-Side Dashboard)**: Once the repository vectors are built and ChromaDB acknowledges success, the UI physically transforms via a CSS Grid (`split-layout`). 
-  * The Index card jumps to a slim left-side panel (350px) displaying indexing statistics (Files Analyzed, Chunks Created).
-  * A massive chat workspace occupies the majority of the screen, providing a familiar conversational UI where users can talk specifically to the indexed codebase. The Chat utilizes automatic scroll, structured AI markdown formatting, and avatar bubbles.
+- [backend/services/graph/index_graph.py](C:/Users/LAKSHYA/Desktop/AI-CodeBase-Assistant/backend/services/graph/index_graph.py) for repository ingestion
+- [backend/services/graph/query_graph.py](C:/Users/LAKSHYA/Desktop/AI-CodeBase-Assistant/backend/services/graph/query_graph.py) for repository querying
 
----
+This is the main architectural change compared with the earlier service-by-service direct endpoint approach.
 
-## 4. Key Engineering Decisions & Best Practices Implemented
+## 3. Repository Ingestion Flow
 
-* **Persistent Vector Storage**: By switching ChromaDB from an Ephemeral client to a `PersistentClient("chroma_db")`, the developer doesn't need to re-index the massive repository every time the server crashes.
-* **Separation of Concerns**: The Python backend strictly compartmentalizes features into `services/` (e.g., reading files is separate from chunking, which is separate from LLM usage).
-* **Strict Prompting Gates**: The LLM prompt explicitly blocks hallucinations by saying: `"Answer the user's question ONLY using the provided code context. If the context does not contain the answer, state that you don't know."`
-* **Real-time Development**: The project uses a `start.bat` script that correctly kicks off both Vite's hot-reloading development server and Uvicorn's Python server concurrently to streamline local development.
+The indexing pipeline starts at `POST /load-repo`.
+
+### Step 1: Clone repository
+
+[backend/services/repo_loader.py](C:/Users/LAKSHYA/Desktop/AI-CodeBase-Assistant/backend/services/repo_loader.py) clones the repository into the local `repositories/` directory.
+
+Current behavior:
+
+- only HTTP/HTTPS URLs are accepted
+- the repository name is extracted from the URL
+- if a local folder already exists for that repository, it is removed before cloning
+
+### Step 2: Read supported source files
+
+[backend/services/file_reader.py](C:/Users/LAKSHYA/Desktop/AI-CodeBase-Assistant/backend/services/file_reader.py) recursively reads supported files and returns a list of dictionaries containing:
+
+- file name
+- full path
+- raw content
+
+Supported extensions currently are:
+
+- `.py`
+- `.js`
+- `.java`
+- `.ts`
+- `.cpp`
+- `.h`
+- `.cs`
+- `.go`
+- `.rs`
+
+Files are read with UTF-8 using `errors="replace"` to reduce failures caused by unusual encodings.
+
+### Step 3: Chunk source code
+
+[backend/services/chunker.py](C:/Users/LAKSHYA/Desktop/AI-CodeBase-Assistant/backend/services/chunker.py) uses `RecursiveCharacterTextSplitter` with:
+
+- `chunk_size=1200`
+- `chunk_overlap=200`
+
+This is important because the current implementation no longer uses the older regex-based function/class chunking strategy described in the previous documentation.
+
+Each chunk keeps file metadata so the retrieval layer can preserve file provenance.
+
+### Step 4: Store chunks in Chroma
+
+[backend/services/vector_db.py](C:/Users/LAKSHYA/Desktop/AI-CodeBase-Assistant/backend/services/vector_db.py) converts chunks into LangChain `Document` objects and stores them in a persistent Chroma collection.
+
+Current storage behavior:
+
+- `persist_directory` is `./chroma_db`
+- `collection_name` is the repository name
+- metadata includes file name and path
+
+The index endpoint returns:
+
+- `repo_name`
+- `files_found`
+- `chunks_created`
+- `message`
+
+## 4. Query and Answer Flow
+
+The question-answer pipeline starts at `GET /ask`.
+
+### Step 1: Build query state
+
+[backend/services/graph/query_graph.py](C:/Users/LAKSHYA/Desktop/AI-CodeBase-Assistant/backend/services/graph/query_graph.py) starts from:
+
+- `query`
+- `repo_name`
+
+The current graph keeps the raw query string as `query_embedding` because Chroma handles embedding internally through the configured embedding function.
+
+### Step 2: Retrieve similar chunks
+
+[backend/services/vector_db.py](C:/Users/LAKSHYA/Desktop/AI-CodeBase-Assistant/backend/services/vector_db.py) creates a retriever from the repository collection and fetches the top `k=5` matching chunks.
+
+Retrieved results are normalized into dictionaries with:
+
+- `chunk`
+- `file_name`
+- `path`
+
+### Step 3: Generate the answer
+
+[backend/services/llm_service.py](C:/Users/LAKSHYA/Desktop/AI-CodeBase-Assistant/backend/services/llm_service.py) uses:
+
+- `ChatGroq`
+- model `llama-3.3-70b-versatile`
+- `temperature=0`
+
+The prompt instructs the model to answer using only the provided context.
+
+The current implementation also includes a safety fallback:
+
+- if no useful retrieved context exists, it returns a friendly re-index message instead of failing
+
+### Step 4: API error handling
+
+[backend/main.py](C:/Users/LAKSHYA/Desktop/AI-CodeBase-Assistant/backend/main.py) wraps the `/ask` graph invocation in a `try/except` block and raises a structured `HTTPException(500)` if the workflow fails.
+
+This makes frontend failures easier to diagnose than a silent server crash.
+
+## 5. CORS and Frontend Integration
+
+The backend explicitly allows common local development origins:
+
+- `http://localhost:5173`
+- `http://127.0.0.1:5173`
+- `http://localhost:3000`
+- `http://127.0.0.1:3000`
+
+These defaults exist because the frontend runs on Vite while the backend runs on FastAPI at a different origin.
+
+The backend supports overriding this list with:
+
+```env
+CORS_ALLOW_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
+```
+
+This is a notable backend improvement and should be preserved in future deployments.
+
+## 6. Current Dependencies and Stack
+
+From [requirements.txt](C:/Users/LAKSHYA/Desktop/AI-CodeBase-Assistant/requirements.txt), the active backend stack includes:
+
+- `fastapi`
+- `uvicorn`
+- `python-dotenv`
+- `groq`
+- `langchain-groq`
+- `langchain`
+- `langchain-core`
+- `langchain-community`
+- `langgraph`
+- `sentence-transformers`
+- `langchain-huggingface`
+- `chromadb`
+- `langchain-chroma`
+- `GitPython`
+- `pydantic`
+
+The file also still lists `streamlit`, but the current web product is not driven by Streamlit.
+
+## 7. Run Instructions
+
+### Standard development startup
+
+Backend:
+
+```bash
+uvicorn backend.main:app --host 127.0.0.1 --port 8000 --reload --reload-dir backend
+```
+
+Frontend:
+
+```bash
+cd frontend
+npm run dev
+```
+
+### Windows helper script
+
+[start.bat](C:/Users/LAKSHYA/Desktop/AI-CodeBase-Assistant/start.bat) starts both services in separate command prompts.
+
+It launches:
+
+- the backend on `127.0.0.1:8000`
+- the frontend on `localhost:5173`
+
+## 8. Legacy Files and Historical Notes
+
+[app.py](C:/Users/LAKSHYA/Desktop/AI-CodeBase-Assistant/app.py) is a legacy Streamlit prototype. It is still present in the repository, but it does not represent the current primary product flow.
+
+The old documentation also referenced several test endpoints such as:
+
+- `/read-codebase`
+- `/chunks`
+- `/embeddings`
+- `/store-embeddings`
+
+These are not part of the current `backend/main.py` API and should no longer be treated as supported application endpoints.
+
+## 9. Suggested Maintenance Notes
+
+The current backend is in a much better place functionally, but these points are worth keeping in mind:
+
+- repository names are used as collection names, so naming collisions can matter if two repositories resolve to the same final URL segment
+- re-indexing an existing repository name writes into the same logical Chroma collection path
+- the `README.md` and this file should stay aligned with `backend/main.py`, not the legacy Streamlit flow
+- if the frontend is deployed on a non-local domain, `CORS_ALLOW_ORIGINS` will need to be set explicitly
